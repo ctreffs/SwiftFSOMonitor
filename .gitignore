@@ -1,0 +1,28 @@
+!*.xcodeproj/project.pbxproj
+!*.xcworkspace/contents.xcworkspacedata
+._*
+.accio/
+.apdisk
+.AppleDB
+.AppleDesktop
+.AppleDouble
+.build/
+.com.apple.timemachine.donotpresent
+.DocumentRevisions-V100
+.DS_Store
+.fseventsd
+.LSOverride
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+/.build
+/Packages
+build/
+Icon
+iOSInjectionProject/
+Network Trash Folder
+playground.xcworkspace
+Temporary Items
+timeline.xctimeline
+xcuserdata/
