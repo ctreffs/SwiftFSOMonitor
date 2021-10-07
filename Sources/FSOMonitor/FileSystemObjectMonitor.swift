@@ -5,8 +5,6 @@ public protocol FileSystemObjectMonitorDelegate: AnyObject {
 }
 
 public final class FileSystemObjectMonitor {
-    public typealias EventHandler = (Event) -> Void
-
     enum Error: Swift.Error {
         case unableToOpenFile(String)
         case emptyPath
@@ -14,7 +12,7 @@ public final class FileSystemObjectMonitor {
     }
 
     /// A dispatch source to monitor a file descriptor.
-    public private(set) var source: DispatchSourceFileSystemObject?
+    internal var source: DispatchSourceFileSystemObject?
 
     /// A file descriptor for the monitored file system object.
     public let fileDescriptor: Int32
@@ -37,6 +35,7 @@ public final class FileSystemObjectMonitor {
         stop()
     }
 
+    /// Start monitoring file system object events.
     public func start() {
         guard source == nil else {
             return
@@ -65,6 +64,7 @@ public final class FileSystemObjectMonitor {
         }
     }
 
+    /// Stop monitoring file system object events.
     public func stop() {
         guard let source = self.source else {
             return
