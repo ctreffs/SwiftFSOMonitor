@@ -4,7 +4,7 @@ lint-fix:
 	@swiftlint --fix --format Tests/
 
 test: 
-	swift test -c release --skip-update --parallel --enable-code-coverage
+	swift test -c release --enable-code-coverage
 
 buildRelease:
 	swift build -c release
