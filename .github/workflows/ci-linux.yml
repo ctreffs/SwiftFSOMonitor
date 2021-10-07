@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@master
       - name: Test
         run: |
-          - swift test --generate-linuxmain
-          - make test
+          swift test --generate-linuxmain
+          make test
       - name: Build Release
         run: make buildRelease
