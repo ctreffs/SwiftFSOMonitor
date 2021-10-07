@@ -19,6 +19,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
       - name: Test
-        run: make test
+        run: |
+          - swift test --generate-linuxmain
+          - make test
       - name: Build Release
         run: make buildRelease
