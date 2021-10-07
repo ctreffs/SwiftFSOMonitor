@@ -91,7 +91,7 @@ public final class FileSystemObjectMonitor {
     }
 
     private func start() {
-        if #available(macOS 10.12, *) {
+        if #available(macOS 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *) {
             source.activate()
         } else {
             source.resume()
