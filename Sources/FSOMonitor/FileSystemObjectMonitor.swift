@@ -5,13 +5,11 @@ public protocol FileSystemObjectMonitorDelegate: AnyObject {
 }
 
 public final class FileSystemObjectMonitor {
-    public typealias SubscriptionHandle = UInt
     public typealias EventHandler = (Event) -> Void
-    public typealias FileDescriptorHandle = Int32
 
     public struct Event {
         /// The file descriptor of the file or socket.
-        public let handle: FileDescriptorHandle
+        public let handle: Int32
         /// The type of the last file system event.
         public let data: DispatchSource.FileSystemEvent
         /// The file descriptor attributes being monitored by the dispatch source.
@@ -75,22 +73,20 @@ public final class FileSystemObjectMonitor {
             self?.delegate?.fileSystemObjectMonitorDidReceive(event: Event(source: source))
         }
 
-        source.setCancelHandler {
-            if !source.isCancelled {
-                source.cancel()
-            }
-            close(source.handle)
+        source.setCancelHandler { [weak self] in
+            self?.stop()
         }
     }
 
     deinit {
-        if !source.isCancelled {
-            source.cancel()
-        }
+        stop()
         close(source.handle)
     }
 
     private func start() {
+        guard !isMonitoring else {
+            return
+        }
         if #available(macOS 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *) {
             source.activate()
         } else {
@@ -101,6 +97,13 @@ public final class FileSystemObjectMonitor {
     }
 
     private func stop() {
+        guard isMonitoring else {
+            return
+        }
+
+        if !source.isCancelled {
+            source.cancel()
+        }
 
         isMonitoring = false
     }
