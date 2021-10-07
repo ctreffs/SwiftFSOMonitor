@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version:5.2
 import PackageDescription
 
 let package = Package(
@@ -12,15 +12,14 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.1")
-
     ],
     targets: [
         .target(
             name: "FSOMonitor",
             dependencies: []),
-        .executableTarget(name: "FSOMonitorCLI",
-                          dependencies: ["FSOMonitor",
-                                         .product(name: "ArgumentParser", package: "swift-argument-parser")]),
+        .target(name: "FSOMonitorCLI",
+                dependencies: [.product(name: "ArgumentParser", package: "swift-argument-parser"),
+                               "FSOMonitor"]),
         .testTarget(
             name: "FSOMonitorTests",
             dependencies: ["FSOMonitor"])

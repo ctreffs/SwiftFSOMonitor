@@ -2,7 +2,8 @@ import FSOMonitor
 import Foundation
 import ArgumentParser
 
-@main
+Watch.main()
+
 final class Watch: ParsableCommand {
     private static var monitor: FileSystemObjectMonitor?
 
