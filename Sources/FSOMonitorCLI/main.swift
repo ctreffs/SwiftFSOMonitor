@@ -12,15 +12,18 @@ final class Watch: ParsableCommand {
 
     func run() throws {
         let semaphore = DispatchSemaphore(value: 0)
-        Self.monitor = try FileSystemObjectMonitor(path: path, queue: .global(qos: .utility), eventMask: .all)
-        Self.monitor?.delegate = self
+        let monitor = try FileSystemObjectMonitor(path: path)
+        Self.monitor = monitor
+        monitor.delegate = self
+        monitor.start()
+
         print("Watching '\(path)' for events ...")
         semaphore.wait()
     }
 }
 
 extension Watch: FileSystemObjectMonitorDelegate {
-    func fileSystemObjectMonitorDidReceive(event: FileSystemObjectMonitor.Event) {
+    func fileSystemObjectMonitorDidObserveChange(monitor: FileSystemObjectMonitor, event: FileSystemObjectMonitor.Event) {
         print(event)
     }
 }

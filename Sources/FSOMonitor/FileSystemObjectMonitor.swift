@@ -1,7 +1,7 @@
 import Foundation
 
 public protocol FileSystemObjectMonitorDelegate: AnyObject {
-    func fileSystemObjectMonitorDidReceive(event: FileSystemObjectMonitor.Event)
+    func fileSystemObjectMonitorDidObserveChange(monitor: FileSystemObjectMonitor, event: FileSystemObjectMonitor.Event)
 }
 
 public final class FileSystemObjectMonitor {
@@ -28,85 +28,94 @@ public final class FileSystemObjectMonitor {
         case noFileURL(String)
     }
 
-    private let source: DispatchSourceFileSystemObject
-    public private(set) var isMonitoring: Bool = false
+    /// A dispatch source to monitor a file descriptor.
+    public private(set) var source: DispatchSourceFileSystemObject?
 
-    public weak var delegate: FileSystemObjectMonitorDelegate? {
-        didSet {
-            if !isMonitoring && delegate != nil {
-                start()
-            } else if isMonitoring && delegate == nil {
-                stop()
-            }
+    /// A file descriptor for the monitored file system object.
+    public let fileDescriptor: Int32
+
+    /// The set of events you want to monitor
+    public let eventMask: DispatchSource.FileSystemEvent
+
+    /// A dispatch queue used for sending file object changes on.
+    public let queue: DispatchQueue
+
+    public weak var delegate: FileSystemObjectMonitorDelegate?
+
+    init(fileDescriptor: Int32, eventMask: DispatchSource.FileSystemEvent, queue: DispatchQueue) {
+        self.fileDescriptor = fileDescriptor
+        self.eventMask = eventMask
+        self.queue = queue
+    }
+
+    deinit {
+        stop()
+    }
+
+    public func start() {
+        guard source == nil else {
+            return
+        }
+
+        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fileDescriptor,
+                                                               eventMask: eventMask,
+                                                               queue: queue)
+        self.source = source
+
+        source.setEventHandler { [unowned self] in
+            self.delegate?.fileSystemObjectMonitorDidObserveChange(monitor: self,
+                                                                   event: Event(source: source))
+        }
+
+        source.setCancelHandler { [unowned self] in
+            close(self.fileDescriptor)
+
+            self.source = nil
+        }
+
+        if #available(macOS 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *) {
+            source.activate()
+        } else {
+            source.resume()
         }
     }
 
-    public convenience init(path: String, queue: DispatchQueue = .main, eventMask: DispatchSource.FileSystemEvent = .all) throws {
+    public func stop() {
+        guard let source = self.source else {
+            return
+        }
+
+        source.cancel()
+    }
+}
+
+extension FileSystemObjectMonitor {
+    public convenience init(path: String, eventMask: DispatchSource.FileSystemEvent = .all, queue: DispatchQueue = .fileSystemObjectMonitorQueue) throws {
         guard !path.isEmpty else {
             throw Error.emptyPath
         }
 
-        try self.init(url: URL(fileURLWithPath: path), queue: queue, eventMask: eventMask)
+        try self.init(url: URL(fileURLWithPath: path), eventMask: eventMask, queue: queue)
     }
 
-    public convenience init(url: URL, queue: DispatchQueue = .main, eventMask: DispatchSource.FileSystemEvent = .all) throws {
+    public convenience init(url: URL, eventMask: DispatchSource.FileSystemEvent = .all, queue: DispatchQueue = .fileSystemObjectMonitorQueue) throws {
         guard url.isFileURL else {
             throw Error.noFileURL(url.absoluteURL.path)
         }
 
         let absolutePath = url.absoluteURL.path
 
-        let fileDescriptor = open(absolutePath, O_EVTONLY) // O_RDONLY
+        let fileDescriptor = open(absolutePath, O_EVTONLY)
         guard fileDescriptor >= 0 else {
             throw Error.unableToOpenFile(absolutePath)
         }
-        try self.init(fileDescriptor: fileDescriptor, queue: queue, eventMask: eventMask)
+        self.init(fileDescriptor: fileDescriptor, eventMask: eventMask, queue: queue)
     }
+}
 
-    init(fileDescriptor: Int32, queue: DispatchQueue, eventMask: DispatchSource.FileSystemEvent) throws {
-        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fileDescriptor,
-                                                               eventMask: eventMask,
-                                                               queue: queue)
-        self.source = source
-
-        source.setEventHandler { [weak self] in
-            self?.delegate?.fileSystemObjectMonitorDidReceive(event: Event(source: source))
-        }
-
-        source.setCancelHandler { [weak self] in
-            self?.stop()
-        }
-    }
-
-    deinit {
-        stop()
-        close(source.handle)
-    }
-
-    private func start() {
-        guard !isMonitoring else {
-            return
-        }
-        if #available(macOS 10.12, iOS 10.0, tvOS 10.0, watchOS 3.0, *) {
-            source.activate()
-        } else {
-            source.resume()
-        }
-
-        isMonitoring = true
-    }
-
-    private func stop() {
-        guard isMonitoring else {
-            return
-        }
-
-        if !source.isCancelled {
-            source.cancel()
-        }
-
-        isMonitoring = false
-    }
+extension DispatchQueue {
+    public static let fileSystemObjectMonitorQueue = DispatchQueue(label: "com.ctreffs.fileSystemObjectMonitor",
+                                                                   attributes: .concurrent)
 }
 
 extension DispatchSource.FileSystemEvent: CustomStringConvertible, CustomDebugStringConvertible {
