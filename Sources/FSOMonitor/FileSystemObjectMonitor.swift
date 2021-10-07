@@ -7,21 +7,6 @@ public protocol FileSystemObjectMonitorDelegate: AnyObject {
 public final class FileSystemObjectMonitor {
     public typealias EventHandler = (Event) -> Void
 
-    public struct Event {
-        /// The file descriptor of the file or socket.
-        public let handle: Int32
-        /// The type of the last file system event.
-        public let data: DispatchSource.FileSystemEvent
-        /// The file descriptor attributes being monitored by the dispatch source.
-        public let mask: DispatchSource.FileSystemEvent
-
-        init(source: DispatchSourceFileSystemObject) {
-            self.handle = source.handle
-            self.data = source.data
-            self.mask = source.mask
-        }
-    }
-
     enum Error: Swift.Error {
         case unableToOpenFile(String)
         case emptyPath
@@ -110,6 +95,47 @@ extension FileSystemObjectMonitor {
             throw Error.unableToOpenFile(absolutePath)
         }
         self.init(fileDescriptor: fileDescriptor, eventMask: eventMask, queue: queue)
+    }
+}
+
+extension FileSystemObjectMonitor {
+    public struct Event {
+        /// The file descriptor of the file or socket.
+        public let handle: Int32
+        /// The type of the last file system event.
+        public let event: DispatchSource.FileSystemEvent
+
+        /// File system object path url.
+        public lazy var url: URL? = Self.makeURL(from: handle)
+
+        private static func makeURL(from handle: Int32) -> URL? {
+            var rawPath = [CChar](repeating: 0,
+                                  count: Int(MAXPATHLEN))
+
+            guard
+                fcntl(handle, F_GETPATH, &rawPath) == 0,
+                let path = String(validatingUTF8: rawPath)
+            else { return nil }
+
+            return URL(fileURLWithPath: path).absoluteURL
+        }
+
+        init(source: DispatchSourceFileSystemObject) {
+            self.handle = source.handle
+            self.event = source.data
+        }
+    }
+}
+extension FileSystemObjectMonitor.Event: CustomStringConvertible {
+    public var description: String {
+        "\(Self.makeURL(from: handle)?.absoluteString ?? "{invalid handle}") \(event)"
+    }
+}
+extension FileSystemObjectMonitor.Event: Equatable { }
+extension FileSystemObjectMonitor.Event: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(handle)
+        hasher.combine(event.rawValue)
     }
 }
 
