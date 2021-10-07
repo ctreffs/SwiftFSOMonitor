@@ -1,4 +1,5 @@
 import Foundation
+import Dispatch
 
 public protocol FileSystemObjectMonitorDelegate: AnyObject {
     func fileSystemObjectMonitorDidObserveChange(monitor: FileSystemObjectMonitor, event: FileSystemObjectMonitor.Event)
